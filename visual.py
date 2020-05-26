@@ -87,7 +87,7 @@ def str_cell(cell):
     result += f"sugar: {cell.sugar}\n"
     result += f"max sugar: {cell.capacity}\n"
     result += f"height/level: {cell.level}\n"
-    result += f"Occupied by Agent {cell.agent.id}\n"
+    result += f"Occupied by Agent {cell.agent.id if cell.agent else None}\n"
     return result
 
 

@@ -5,13 +5,14 @@
 # eventCalendar - EventCalendar of current state
 # landscape - Landscape of current state
 # time - Current time
-from visual import str_agent, str_cell
+from visual import str_agent, str_cell, str_map, compare_maps
+import re
 
 
 ########## Input command functions ##########
 def help(args, agentList, eventCalendar, landscape, time):
     if len(args) == 0:
-        print(COMMANDS.keys())
+        print(list(COMMANDS.keys()))
     else:
         cmdName = args[0]
         if cmdName in COMMANDS:
@@ -32,8 +33,8 @@ def cell(args, agentList, eventCalendar, landscape, time):
             target = landscape.get_cell(x, y)
             if target:
                 print(str_cell(target))
-        except:
-            print("An error occurred, might give specifics later") # TODO
+        except Exception as err:
+            print(f"An error occurred: {err}") # TODO
     else:
         print("Invalid arguments; help cell")
 
@@ -54,12 +55,16 @@ def agent(args, agentList, eventCalendar, landscape, time):
 
 
 def visualize(args, agentList, eventCalendar, landscape, time):
-    print("Not yet implemented!")
+    print(f"{str_map(landscape)}\n{str_map(landscape, terrain=True)}")
 
 
 def alive(args, agentList, eventCalendar, landscape, time):
     for agent in list(agentList.agentList):
         print(agent.id)
+
+
+def jump(args, agentList, eventCalendar, landscape, time):
+    print("Not yet implemented!")
 
 
 ########### Base commands ###########
@@ -88,6 +93,11 @@ COMMANDS = {
         "summary": "Show all alive Agent IDs",
         "format": "",
         "exec": alive
+    },
+    "jump": {
+        "summary": "Jump to the nearest given time",
+        "format": "<time>",
+        "exec": jump
     }
 }
 
@@ -97,7 +107,7 @@ def interpret(command, agentList, eventCalendar, landscape, time):
     """Interpret given command string.
     Returns True when non-blank command/input given. 
     """
-    parsed = command.split("\s")
+    parsed = re.compile("\s").split(command)
     if len(parsed) == 0 or command.strip().replace("\s", "") == "":
         return False
     cmdName = parsed[0]
