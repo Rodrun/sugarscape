@@ -34,7 +34,7 @@ def cell(args, agentList, eventCalendar, landscape, time):
             if target:
                 print(str_cell(target))
         except Exception as err:
-            print(f"An error occurred: {err}") # TODO
+            print(f"An error occurred: {err}")
     else:
         print("Invalid arguments; help cell")
 
@@ -48,8 +48,8 @@ def agent(args, agentList, eventCalendar, landscape, time):
             target = agentList.get_by_id(id)
             if target:
                 print(str_agent(target))
-        except:
-            print("An error occurred, might give specifics later") # TODO
+        except Exception as err:
+            print(f"An error occurred: {err}")
     else:
         print("Invalid arguments; help agent")
 
