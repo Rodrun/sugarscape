@@ -14,6 +14,7 @@ COLUMNS = int(get("COLUMNS", 50)) # Landscape columns
 AGENTS = int(get("AGENTS", 400)) # Initial agent population size
 MAX_POSSIBLE_SUGAR = int(get("MAX_POSSIBLE_SUGAR", 5)) # Maximum possible sugar capacity per cell
 MAX_HEIGHT = int(get("MAX_HEIGHT", 4)) # Maximum cell height
+PAUSE = sbool(get("PAUSE",  "False")) # Pause after every event
 # Visual general config
 SHOW_ANIMATION = sbool(get("SHOW_ANIMATION", "False")) # Show visual of every event -- slower simulation
 SHOW_FINAL_COMPARISON = sbool(get("SHOW_FINAL_COMPARISON", "False")) # Show visual comparison of initial state vs final state

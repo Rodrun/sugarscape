@@ -28,3 +28,8 @@ class EventCalendar:
                     minIndex = i
             return self.calendar.pop(minIndex)
         return None
+
+    def remove_agent(self, agent):
+        """Remove events relating to given Agent."""
+        for i in range(self.calendar.count(agent)):
+            self.calendar.remove(agent)

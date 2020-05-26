@@ -79,3 +79,23 @@ def nice_statistics(aList, time):
         result += f"Average {ending}: {aList.average(stat)}\n"
         result += f"Median {ending}: {aList.median(stat)}\n"
     return result
+
+
+def str_cell(cell):
+    """Get a nice string of given Cell statistics."""
+    result = f"-----Cell ({cell.x}, {cell.y})-----\n"
+    result += f"sugar: {cell.sugar}\n"
+    result += f"max sugar: {cell.capacity}\n"
+    result += f"height/level: {cell.level}\n"
+    result += f"Occupied by Agent {cell.agent.id}\n"
+    return result
+
+
+def str_agent(agent):
+    """Get a nice string of an Agent's statistics."""
+    result = f"-----Agent {agent.id} ({agent.col}, {agent.row})-----\n"
+    result += f"sugar: {agent.sugar}\n"
+    result += f"metabolism: {agent.metab}\n"
+    result += f"vision: {agent.vision}\n"
+    result += f"t_nextEventTime: {agent.t_nextEventTime}\n"
+    return result

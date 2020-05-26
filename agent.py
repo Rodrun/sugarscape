@@ -19,7 +19,7 @@ class Agent:
         self.vision = math.ceil(random.uniform(1, 6))
 
         # Time keep
-        self.t_move = random.expovariate(1.0) #exp(1.0)
+        self.t_move = abs(random.expovariate(1.0)) #exp(1.0)
         self.t_die  = math.inf
         self.t_nextEventTime, self.t_nextEventType = math.inf, None
         #self.t_reproduce = lognormal(4, 2.5)
@@ -87,30 +87,35 @@ class Agent:
             landscape.move(self.col, self.row, maxCell.x, maxCell.y)
             self.eat(maxCell)
         # schedule next move
-        self.t_move = t + random.expovariate(1.0)
-        #self.t_move = t + 1.0
-    
+        self.t_move = t + abs(random.expovariate(1.0))
+
         # Do we die before next scheduled move?
         # If so, schedule death at computed time.
         # For now, only compare to t_move, rather than next event.
         # Compute how much sugar will be metabolised by t_move. y = b + mt
-        expectedAmount = self.sugar - self.metab * (self.t_move - t)
+        # TODO account for change of cell sugar at this time???
+        expectedAmount = self.sugar + (-self.metab * (self.t_move - t))
         # If expectedAmount is <= 0, schedule death
         if expectedAmount <= 0:
             # Compute time of death with basic algebra
             # 0 = b + mt
             # -b = mt
             # -b/m = t
-            self.t_die = -self.sugar / self.metab
+            m = (expectedAmount - self.sugar) / (self.t_move - t)
+            b = self.sugar
+            self.t_die = t + (-b / m)
+            if self.t_die < 0:
+                raise Exception(f"{self.t_die}")
         else:
             self.nextSugar = expectedAmount
 
         self.setNextEvent(calendar)
 
-    def die(self, landscape, alist):
-        """Remove from landscape and agentlist."""
+    # TODO: Decide if this should be kept, or removal should be handled by AgentList
+    def die(self, landscape, alist, calendar):
+        """Remove from landscape, calendar list, and agentlist."""
         landscape.remove(self.col, self.row)
-        alist.remove(self)
+        alist.remove(self, calendar) # Handles removal from calendar and AgentList
 
 
 class AgentList:
@@ -128,8 +133,20 @@ class AgentList:
             landscape.put(newAgent, newAgent.col, newAgent.row)
             self.current_id += 1
 
-    def remove(self, agent):
+    def get_by_id(self, id):
+        """Search for and return an Agent by id.
+        Returns None if not found.
+        """
+        for agent in list(self.agentList):
+            if agent.id == id:
+                return agent
+        return None
+
+    def remove(self, agent, calendar):
+        """Remove agent from list and calendar."""
         if agent in self.agentList:
+            # Remove events relating to this agent
+            calendar.remove_agent(agent)
             self.agentList.remove(agent)
 
     def average(self, stat):

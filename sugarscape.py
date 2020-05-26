@@ -3,11 +3,12 @@
 # by Epstein, Axell
 from agent import AgentList
 from config import SEED, SHOW_SUGAR, ROWS, COLUMNS, SHOW_FINAL_COMPARISON,\
-    SHOW_ANIMATION, SHOW_TERRAIN, AGENTS, MAX_T
+    SHOW_ANIMATION, SHOW_TERRAIN, AGENTS, MAX_T, PAUSE
 from event import EventCalendar, Event
 from landscape import Landscape
-from visual import str_map, compare_maps, nice_statistics
+from pause import interpret
 import random
+from visual import str_map, compare_maps, nice_statistics
 
 
 random.seed(SEED)
@@ -31,11 +32,21 @@ while t < MAX_T and len(eventList.calendar) > 0:
     if e.type == Event.MOVE:
         e.agent.move(t, landscape, eventList)
     elif e.type == Event.DIE:
-        e.agent.die(landscape, agentList)
+        e.agent.die(landscape, agentList, eventList)
 
     if SHOW_ANIMATION and t >= 0: # Weird bug where sometimes negative times are shown?
         bMap = str_map(landscape, showSugar=SHOW_SUGAR)
         print(f"t = {t}, alive = {len(agentList.agentList)}\n{bMap}")
+
+    if PAUSE:
+        # Print nice statistics and await input
+        # Empty input == continue to next event
+        print(nice_statistics(agentList, t))
+        repeatInput = True
+        while repeatInput:
+            uInput = input(f"Input t={t}> ")
+            repeatInput = interpret(uInput, agentList, eventList, landscape, t)
+
 
     if len(eventList.calendar) > 0:
         e = eventList.getMinEvent()
