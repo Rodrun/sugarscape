@@ -92,10 +92,22 @@ def str_cell(cell):
 
 
 def str_agent(agent):
-    """Get a nice string of an Agent's statistics."""
+    """Get a nice string of an Agent's current state."""
     result = f"-----Agent {agent.id} ({agent.col}, {agent.row})-----\n"
     result += f"sugar: {agent.sugar}\n"
     result += f"metabolism: {agent.metab}\n"
     result += f"vision: {agent.vision}\n"
     result += f"t_nextEventTime: {agent.t_nextEventTime}\n"
+    result += f"t_nextEventType: {agent.t_nextEventType}\n"
+    result += f"period_g: {agent.period_g}\n"
+    if agent.mate:
+        result += f"mate: {agent.mate.id}"
+    return result
+
+
+def str_event(event):
+    """Get a nice string of an Event."""
+    result = f"-----Event @ t={event.time}\n"
+    result += f"type: {event.type}\n"
+    result += f"agent: {event.agent.id}\n"
     return result

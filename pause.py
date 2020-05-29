@@ -5,7 +5,8 @@
 # eventCalendar - EventCalendar of current state
 # landscape - Landscape of current state
 # time - Current time
-from visual import str_agent, str_cell, str_map, compare_maps
+import traceback
+from visual import str_agent, str_cell, str_map, compare_maps, str_event
 import re
 
 
@@ -34,7 +35,7 @@ def cell(args, agentList, eventCalendar, landscape, time):
             if target:
                 print(str_cell(target))
         except Exception as err:
-            print(f"An error occurred: {err}")
+            print(f"An error occurred: {err}\n{traceback.format_exc()}")
     else:
         print("Invalid arguments; help cell")
 
@@ -48,8 +49,10 @@ def agent(args, agentList, eventCalendar, landscape, time):
             target = agentList.get_by_id(id)
             if target:
                 print(str_agent(target))
+            else:
+                print(f"Could not find Agent {id}")
         except Exception as err:
-            print(f"An error occurred: {err}")
+            print(f"An error occurred: {err}\n{traceback.format_exc()}")
     else:
         print("Invalid arguments; help agent")
 
@@ -65,6 +68,33 @@ def alive(args, agentList, eventCalendar, landscape, time):
 
 def jump(args, agentList, eventCalendar, landscape, time):
     print("Not yet implemented!")
+
+
+def nextevent(args, agentList, eventCalendar, landscape, time):
+    ev = eventCalendar.getMinEvent(doPop=False)
+    print(str_event(ev))
+
+
+def lscount(args, agentList, eventCalendar, landscape, time):
+    ct = 0
+    for y in range(landscape.rows):
+        for x in range(landscape.cols):
+            if landscape.get_cell(y, x).agent != None:
+                ct += 1
+    print(f"Landscape count: {ct}")
+
+
+def nefind(args, agentList, eventCalendar, landscape, time):
+    if len(args) == 0:
+        help("nefind", agentList, eventCalendar, landscape, time)
+    elif len(args) == 1:
+        found = eventCalendar.next_by_type(args[0])
+        if found:
+            print(str_event(found))
+        else:
+            print("No nearest event found with given type :(")
+    else:
+        print("Invalid arguments; help nefind")
 
 
 ########### Base commands ###########
@@ -94,10 +124,25 @@ COMMANDS = {
         "format": "",
         "exec": alive
     },
-    "jump": {
+    "jump": { # TODO implement this
         "summary": "Jump to the nearest given time",
         "format": "<time>",
         "exec": jump
+    },
+    "nextevent": {
+        "summary": "Show info about the next event",
+        "format": "",
+        "exec": nextevent
+    },
+    "lscount": {
+        "summary": "Show the population count of the landscape",
+        "format": "",
+        "exec": lscount
+    },
+    "nefind": {
+        "summary": "Find the next event by given type",
+        "format": "<typename>",
+        "exec": nefind
     }
 }
 

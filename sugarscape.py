@@ -1,4 +1,4 @@
-# An implementation of the "sugarscape" described in Chapters I & II
+# An implementation of the "sugarscape" somewhat based on Chapters I-III
 # in the book "Growing Artificial Societies: Social Science from The Bottom Up"
 # by Epstein, Axell
 from agent import AgentList
@@ -19,20 +19,25 @@ agentList = AgentList(AGENTS, landscape, eventList)
 
 print(f"Seed: {SEED}")
 print(nice_statistics(agentList, 0))
-#print(f"Seasonal period (y) = {GAMMA} with initial Northern season summer")
 init_map = str_map(landscape, showSugar=SHOW_SUGAR)
-#print(str_map(landscape, terrain=True))
 
 e = eventList.getMinEvent()
 t = e.time
 while t < MAX_T and len(eventList.calendar) > 0:
     # Update sugar in the landscape
     landscape.update_sugar(t)
-    
+
     if e.type == Event.MOVE:
         e.agent.move(t, landscape, eventList)
     elif e.type == Event.DIE:
-        e.agent.die(landscape, agentList, eventList)
+        e.agent.alive = False
+        agentList.remove(e.agent, eventList, landscape)
+    elif e.type == Event.BIRTH:
+        baby = e.agent.birth(t, landscape, eventList)
+        if baby:
+            agentList.full_add(baby, landscape)
+    elif e.type == Event.REPRODUCE:
+        e.agent.reproduce(t, landscape, eventList)
 
     if SHOW_ANIMATION and t >= 0: # Weird bug where sometimes negative times are shown?
         bMap = str_map(landscape, showSugar=SHOW_SUGAR)
@@ -46,7 +51,6 @@ while t < MAX_T and len(eventList.calendar) > 0:
         while repeatInput:
             uInput = input(f"Input t={t}> ")
             repeatInput = interpret(uInput, agentList, eventList, landscape, t)
-
 
     if len(eventList.calendar) > 0:
         e = eventList.getMinEvent()

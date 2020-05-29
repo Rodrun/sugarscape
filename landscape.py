@@ -33,41 +33,23 @@ class Landscape:
         self.rows = rows
         self.cols = cols
         self.landscape = [[Cell(x, y) for x in range(self.cols)] for y in range(self.rows)]
-        self.population = 0
         self.t_lastSugarUpdate = 0
-
-    def valid_coord(self, x, y, strict=False): # TODO: Decide if this is even useful anymore???
-        """Return true if (x, y) are real coordinates the landscape.
-        When strict = False (default), treats landscape as a torus (think of pacman) so
-        coordinates that usually wouldn't be valid are treated as valid. For example:
-            Given x = -1 y = ROWS with strict = False, return True;
-            because x will be interpeted as COLS - 1 and y as 0, which are valid coordinates.
-        When strict = True, treats landscape as a traditional map. For example:
-            Given x = -1 y = ROWS with strict = True, return False;
-            because x < 0 and y >= ROWS are invalid coordinate values.
-        """
-        if strict:
-            satisfy_x = x >= 0 and x < self.cols
-            satisfy_y = y >= 0 and y < self.rows
-            return satisfy_x and satisfy_y
-        return True # This is why the TODO exists
 
     def convert_coords(self, x, y):
         """Convert the given coordinates to list-usable indexes."""
         return x % self.cols, y % self.rows
 
     def put(self, obj, x, y):
-        """Put Agent obj to (x, y) and return True.
-        Returns False when Agent is present, given invalid coordinate, obj not an Agent, or population capacity met.
+        """Put Agent obj to (x, y) and return True on success.
+        Returns False when Agent is present, obj not an Agent, or population capacity met.
         """
-        if self.valid_coord(x, y):
-            if isinstance(obj, Agent) and self.is_empty(x, y):
-                obj.col = x
-                obj.row = y
-                self.get_cell(x, y).agent = obj
-                #print(f"Put Agent {obj.id} at {obj.col, obj.row}, exp {x, y}")
-                return True
-        #print(f"WARNING: Failed to put Agent {obj.id} at {x, y}")
+        if isinstance(obj, Agent) and self.is_empty(x, y):
+            obj.col = x
+            obj.row = y
+            self.get_cell(x, y).agent = obj
+            return True
+        else:
+            print(f"WARNING: Could not put given {obj} at {x, y}!")
         return False
 
     def remove(self, x, y):
@@ -78,9 +60,8 @@ class Landscape:
             #print(f"WARNING: Tried to remove nonexistent Agent at ({x, y})") # TODO Handle this better if it happens
             pass
 
-    def is_empty(self, x, y): # Should refractor to a much better name
+    def is_empty(self, x, y):
         """Check if Cell at (x, y) does not have agent."""
-        #return self.landscape[y][x].agent == None
         return self.get_cell(x, y).agent == None
 
     def next_open(self):
@@ -101,17 +82,14 @@ class Landscape:
     def get_cell(self, x, y, strict=False):
         """Get the cell at (x, y).
         Since the landscape is a torus, coordinate values "wrap" around. Similar to pacman.
-        Returns None if not a valid cell.
         """
-        if self.valid_coord(x, y, strict):
-            return self.landscape[y % self.rows][x % self.cols]
-        return None
+        return self.landscape[y % self.rows][x % self.cols]
 
     def move(self, x0, y0, x1, y1):
         """Move Agent at (x0, y0) to (x1, y1)."""
         oldCell = self.get_cell(x0, y0)
         if oldCell.agent == None:
-            #print(f"WARNING: Tried to move nonexistent Agent at {x0, y0}") # TODO Fix this bug?
+            #print(f"WARNING: Tried to move nonexistent Agent at {x0, y0}") # TODO Handle this better?
             return
         self.put(oldCell.agent, x1, y1)
         self.remove(x0, y0)
