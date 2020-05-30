@@ -13,9 +13,12 @@ AGENTS = int(get("AGENTS", 400)) # Initial agent population size
 MAX_POSSIBLE_SUGAR = int(get("MAX_POSSIBLE_SUGAR", 5)) # Maximum possible sugar capacity per cell
 MAX_HEIGHT = int(get("MAX_HEIGHT", 4)) # Maximum cell height
 PAUSE = sbool(get("PAUSE",  "False")) # Pause after every event
-REPRODUCTION_LAMBDA = float(get("REPRODUCTION_LAMBDA", 0.25)) # Random expovariate lambda value when deciding reproduction event time
+REPRODUCTION_LAMBDA = float(get("REPRODUCTION_LAMBDA", 0.175)) # Random expovariate lambda value when deciding reproduction event time
+FERTILE_AGE = float(get("FERTILE_AGE", 1.6)) # Minimum time age mothering Agents can reproduce
 GESTATION_MU = float(get("GESTATION_MU", 1)) # Mean gestation period length (normal distribution)
 GESTATION_SIGMA = float(get("GESTATION_SIGMA", .5)) # Std Deviation of gestation period length distribution
+MEAN_MAX_AGE = float(get("MEAN_MAX_AGE", 70)) # Mean maximum age, max age is randomly chosen from a gaussian distribution
+SIGMA_MAX_AGE = float(get("SIGMA_MAX_AGE", 10)) # Maximum age gaussian distribution standard distribution
 # Visual general config
 SHOW_ANIMATION = sbool(get("SHOW_ANIMATION", "False")) # Show visual of every event -- slower simulation
 SHOW_FINAL_COMPARISON = sbool(get("SHOW_FINAL_COMPARISON", "False")) # Show visual comparison of initial state vs final state

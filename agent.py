@@ -1,5 +1,6 @@
 from event import Event
-from config import GESTATION_MU, GESTATION_SIGMA, REPRODUCTION_LAMBDA
+from config import GESTATION_MU, GESTATION_SIGMA, REPRODUCTION_LAMBDA, FERTILE_AGE,\
+    MEAN_MAX_AGE, SIGMA_MAX_AGE
 import math
 import plotly.express as px
 import random
@@ -7,7 +8,7 @@ import random
 
 class Agent:
     def __init__(self, landscape, calendar, id=None, t=0, row=None, col=None, metab=None,
-        vision=None):
+        vision=None, mother=None, max_age=None, initial_sugar=0):
         """
         landscape - Target Landscape.
         calendar - EventCalendar.
@@ -17,12 +18,16 @@ class Agent:
         col - Landscape column, if None will randomly choose both row and col.
         metab - Metabolic rate per time step, if None random value is assigned.
         vision - Vision distance, if None random value is assigned.
+        mother - Is mother? (Can reproduce & birth child?)
+        max_age - Maximum age.
+        initial_sugar - Initial sugar alotted (Agent still eats at Cell it is spawned in).
         """
         self.id = id
-        self.sugar = 0 # Placeholder value
+        self.sugar = initial_sugar
         self.nextSugar = 0 # Calculated sugar by the time of next move event
         self.mate = None # Who to combine genetics with
         self.alive = True
+        self.birthdate = t # Time of birth, of course
 
         self.row = row
         self.col = col
@@ -34,19 +39,23 @@ class Agent:
         # Genetic traits
         self.metab = metab if metab != None else random.uniform(1, 4)
         self.vision = vision if vision != None else math.ceil(random.uniform(1, 6))
+        self.mother = mother if mother != None else random.choice([True, False])
+        self.max_age = max_age if max_age != None else random.gauss(MEAN_MAX_AGE, SIGMA_MAX_AGE)
 
         # Time keep
         self.t_nextEventTime, self.t_nextEventType = math.inf, None
         self.t_move = t + random.expovariate(1.0) # When to move
         self.t_die  = math.inf # When to die
-        self.t_reproduce = t + + 1.0 + random.expovariate(REPRODUCTION_LAMBDA) # When to look for mate
+        if self.mother:
+            self.t_reproduce = t + FERTILE_AGE + random.expovariate(REPRODUCTION_LAMBDA)
+        else:
+            self.t_reproduce = math.inf
         self.t_birth = math.inf # When to give birth
         self.period_g = math.inf # Gestation period length
 
         self.eat(landscape.get_cell(self.col, self.row)) # Eat initial sugar
         self.setNextEvent(t, calendar)
 
-    # Temporary(?) workaround
     def _minimum_pair(self, values, results):
         """Given a list of values with corresponding list of results, return the pair with the minimum value.
         For example, _minimum_pair([5, 100], ["a", "b"]) -> (5, "a").
@@ -136,28 +145,37 @@ class Agent:
                     evaluate(checkCell)
 
     def reproduce(self, t, landscape, calendar):
-        """Look for another Agent in the FOV to reproduce with."""
+        """Look for another Agent in the FOV to reproduce with.
+        Only Agents with mother = True choose their mate. Smash the patriarchy.
+        Modified reproduce rule:
+            - Find wealthiest non-mother Agent within the FOV.
+            - If Agent cannot find a candidate, reschedule reproduction event.
+            - If viable candidate chosen, schedule birth event.
+        """
         self.sugar = self.nextSugar
-        # Find wealthiest Agent who is not gestating
-        wealthiest = None
-        maxSugar = -math.inf
-        def find_wealthiest(cell, dist):
-            nonlocal wealthiest
-            nonlocal maxSugar
-            if cell.agent != None:
-                cand = cell.agent
-                if cell.sugar > maxSugar and not cand.is_gestating(t) and cand.alive:
-                    wealthiest = cand
-                    maxSugar = cell.sugar
-        self.field_of_view(landscape, find_wealthiest)
+        if self.mother:
+            # Find wealthiest non-mother Agent
+            wealthiest = None
+            maxSugar = -math.inf
+            def find_wealthiest(cell, dist):
+                nonlocal wealthiest
+                nonlocal maxSugar
+                if cell.agent != None:
+                    cand = cell.agent
+                    if cell.sugar > maxSugar and not cand.is_gestating(t) and cand.alive:
+                        wealthiest = cand
+                        maxSugar = cell.sugar
+            self.field_of_view(landscape, find_wealthiest)
 
-        if wealthiest:
-            self.mate = wealthiest
-            self.period_g = random.normalvariate(GESTATION_MU, GESTATION_SIGMA)
-            self.t_birth = t + self.period_g
-            self.t_reproduce = math.inf
+            if wealthiest:
+                self.mate = wealthiest
+                self.period_g = random.normalvariate(GESTATION_MU, GESTATION_SIGMA)
+                self.t_birth = t + self.period_g
+                self.t_reproduce = math.inf
+            else:
+                self.t_reproduce = t + random.expovariate(REPRODUCTION_LAMBDA)
         else:
-            self.t_reproduce = t + .001 + random.expovariate(REPRODUCTION_LAMBDA)
+            self.t_reproduce = t + random.expovariate(REPRODUCTION_LAMBDA)
         self.setNextEvent(t, calendar)
 
     def get_best_birth_cell(self, landscape):
@@ -174,38 +192,38 @@ class Agent:
         return maxCell
 
     def birth(self, t, landscape, calendar):
-        """Give birth, if an empty neighboring Cell is available and both partners are alive.
+        """Give birth, if an empty neighboring Cell is available. Only mother Agents give birth.
+        Modified birth rule:
+            - Look for an emtpy cell in the Moore neighborhood with the most sugar.
+            - If an empty cell cannot be found in the Moore neighborhood, cancel birth.
+            - Offspring will have metabolism and vision traits randomly inherited from parents.
         Returns offspring Agent, None if birth failed.
         """
+        self.sugar = self.nextSugar
         baby = None
-        # Only birth if the parents are both alive
-        if self.alive and self.mate.alive:
-            # First, check if theres an open cell in the Moore neighborhoods of parents
-            # Also choose who has the best suited cell in the Moore neighborhoods
-            selfBest = self.get_best_birth_cell(landscape)
-            mateBest = self.mate.get_best_birth_cell(landscape)
-            if selfBest == None:
-                selfBestSugar = -math.inf
-            else:
-                selfBestSugar = selfBest.sugar
-            if mateBest == None:
-                mateBestSugar = -math.inf
-            else:
-                mateBestSugar = mateBest.sugar
-            maxSugar, birthCell = self._maximum_pair([selfBestSugar, mateBestSugar], [selfBest, mateBest])
-
+        if self.alive:
+            birthCell = self.get_best_birth_cell(landscape)
             if birthCell != None:
                 # Randomly choose inherited traits
-                # It's not necessarily Mendelian, but works for now given we have only 2 traits
+                # It's not necessarily Mendelian, but works for now
                 metab = random.choice([self.metab, self.mate.metab])
                 vision = random.choice([self.vision, self.mate.vision])
+                max_age = random.choice([self.max_age, self.mate.max_age])
+                # Inheritance
+                selfInherit = self.sugar / 2
+                mateInherit = self.mate.sugar / 2
                 # Give birth
                 baby = Agent(landscape, calendar,
                     row=birthCell.y,
                     col=birthCell.x,
                     t=t,
                     metab=metab,
-                    vision=vision)
+                    vision=vision,
+                    max_age=max_age,
+                    initial_sugar=selfInherit + mateInherit)
+                # Adjust for inheritance
+                self.sugar -= selfInherit
+                self.mate.sugar -= mateInherit
 
         self.mate = None
         self.t_birth = math.inf
@@ -266,6 +284,8 @@ class Agent:
         if expectedAmount <= 0:
             m = (expectedAmount - self.sugar) / (tHopeful - tNow)
             return tNow + (-self.sugar / m)
+        if tHopeful >= self.max_age:
+            return self.birthdate + self.max_age
         return -math.inf
 
     def check_for_death(self, t, t_next):
@@ -273,7 +293,6 @@ class Agent:
         t - Current time.
         t_next - Hopeful next scheduled event time.
         """
-        # Check for death before scheduled next move
         deathTime = self.compute_death(t, t_next)
         if deathTime != -math.inf:
             if deathTime < self.t_move:
