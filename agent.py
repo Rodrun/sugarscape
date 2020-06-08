@@ -3,11 +3,12 @@ from config import GESTATION_MU, GESTATION_SIGMA, REPRODUCTION_LAMBDA, FERTILE_A
     MEAN_MAX_AGE, SIGMA_MAX_AGE
 import math
 import plotly.express as px
-import random
+#import random
+from rng import RNG
 
 
 class Agent:
-    def __init__(self, landscape, calendar, id=None, t=0, row=None, col=None, metab=None,
+    def __init__(self, landscape, calendar, rng, id=None, t=0, row=None, col=None, metab=None,
         vision=None, mother=None, max_age=None, initial_sugar=0):
         """
         landscape - Target Landscape.
@@ -23,6 +24,7 @@ class Agent:
         initial_sugar - Initial sugar alotted (Agent still eats at Cell it is spawned in).
         """
         self.id = id
+        self.rng = rng
         self.sugar = initial_sugar
         self.nextSugar = 0 # Calculated sugar by the time of next move event
         self.mate = None # Who to combine genetics with
@@ -37,17 +39,17 @@ class Agent:
             raise Error("No more open spots on landscape!")
 
         # Genetic traits
-        self.metab = metab if metab != None else random.uniform(1, 4)
-        self.vision = vision if vision != None else math.ceil(random.uniform(1, 6))
-        self.mother = mother if mother != None else random.choice([True, False])
-        self.max_age = max_age if max_age != None else random.gauss(MEAN_MAX_AGE, SIGMA_MAX_AGE)
+        self.metab = metab if metab != None else rng.get("genetic").uniform(1, 4)
+        self.vision = vision if vision != None else math.ceil(rng.get("genetic").uniform(1, 6))
+        self.mother = mother if mother != None else rng.get("genetic").choice([True, False])
+        self.max_age = max_age if max_age != None else rng.get("genetic").normal(MEAN_MAX_AGE, SIGMA_MAX_AGE)
 
         # Time keep
         self.t_nextEventTime, self.t_nextEventType = math.inf, None
-        self.t_move = t + random.expovariate(1.0) # When to move
+        self.t_move = t + rng.get("inter").exponential(1.0) # When to move
         self.t_die  = math.inf # When to die
         if self.mother:
-            self.t_reproduce = t + FERTILE_AGE + random.expovariate(REPRODUCTION_LAMBDA)
+            self.t_reproduce = t + FERTILE_AGE + rng.get("inter").exponential(REPRODUCTION_LAMBDA)
         else:
             self.t_reproduce = math.inf
         self.t_birth = math.inf # When to give birth
@@ -119,7 +121,7 @@ class Agent:
             raise TypeError("field_of_view() requires a callable evaluate parameter")
         agentCell = landscape.get_cell(self.col, self.row)
         directions = [[0, 1], [1, 0], [0, -1], [-1, 0]]
-        random.shuffle(directions)
+        self.rng.get("shuffle").shuffle(directions)
         for direction in directions:
             for dist in range(self.vision):
                 x = self.col + direction[0]
@@ -169,13 +171,13 @@ class Agent:
 
             if wealthiest:
                 self.mate = wealthiest
-                self.period_g = random.normalvariate(GESTATION_MU, GESTATION_SIGMA)
+                self.period_g = self.rng.get("inter").normal(GESTATION_MU, GESTATION_SIGMA)
                 self.t_birth = t + self.period_g
                 self.t_reproduce = math.inf
             else:
-                self.t_reproduce = t + random.expovariate(REPRODUCTION_LAMBDA)
+                self.t_reproduce = t + self.rng.get("inter").exponential(REPRODUCTION_LAMBDA)
         else:
-            self.t_reproduce = t + random.expovariate(REPRODUCTION_LAMBDA)
+            self.t_reproduce = t + self.rng.get("inter").exponential(REPRODUCTION_LAMBDA)
         self.setNextEvent(t, calendar)
 
     def get_best_birth_cell(self, landscape):
@@ -206,9 +208,9 @@ class Agent:
             if birthCell != None:
                 # Randomly choose inherited traits
                 # It's not necessarily Mendelian, but works for now
-                metab = random.choice([self.metab, self.mate.metab])
-                vision = random.choice([self.vision, self.mate.vision])
-                max_age = random.choice([self.max_age, self.mate.max_age])
+                metab = self.rng.get("genetic").choice([self.metab, self.mate.metab])
+                vision = self.rng.get("genetic").choice([self.vision, self.mate.vision])
+                max_age = self.rng.get("genetic").choice([self.max_age, self.mate.max_age])
                 # Inheritance
                 selfInherit = self.sugar / 2
                 mateInherit = self.mate.sugar / 2
@@ -217,6 +219,7 @@ class Agent:
                     row=birthCell.y,
                     col=birthCell.x,
                     t=t,
+                    rng=self.rng,
                     metab=metab,
                     vision=vision,
                     max_age=max_age,
@@ -228,7 +231,7 @@ class Agent:
         self.mate = None
         self.t_birth = math.inf
         # Schedule next reproduction event
-        self.t_reproduce = t + random.expovariate(REPRODUCTION_LAMBDA)
+        self.t_reproduce = t + self.rng.get("inter").exponential(REPRODUCTION_LAMBDA)
         self.setNextEvent(t, calendar)
         return baby
 
@@ -265,7 +268,7 @@ class Agent:
             landscape.move(self.col, self.row, maxCell.x, maxCell.y)
             self.eat(maxCell)
         # Schedule next move
-        self.t_move = t + abs(random.expovariate(1.0))
+        self.t_move = t + abs(self.rng.get("inter").exponential(1.0))
         self.setNextEvent(t, calendar)
 
     def compute_sugar(self, tNow, tThen):
@@ -305,11 +308,11 @@ class AgentList:
     METABOLISM = lambda agent: agent.metab
     VISION = lambda agent: agent.vision
 
-    def __init__(self, initialAmt, landscape, calendar):
+    def __init__(self, initialAmt, landscape, calendar, rng):
         self.current_id = 0
         self.agentList = set()
         for i in range(initialAmt):
-            newAgent = Agent(landscape, calendar)
+            newAgent = Agent(landscape, calendar, rng=rng)
             self.full_add(newAgent, landscape)
 
     def add(self, agent):

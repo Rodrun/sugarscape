@@ -8,14 +8,16 @@ from event import EventCalendar, Event
 from landscape import Landscape
 from pause import interpret
 import random
+from rng import RNG
 from visual import str_map, compare_maps, nice_statistics
 
 
-random.seed(SEED)
+#random.seed(SEED)
+rng = RNG(SEED)
 
-landscape = Landscape(ROWS, COLUMNS)
+landscape = Landscape(ROWS, COLUMNS, rng=rng)
 eventList = EventCalendar()
-agentList = AgentList(AGENTS, landscape, eventList)
+agentList = AgentList(AGENTS, landscape, eventList, rng=rng)
 
 print(f"Seed: {SEED}")
 print(nice_statistics(agentList, 0))

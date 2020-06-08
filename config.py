@@ -5,7 +5,7 @@ get = environ.get
 
 # Important general config
 MAX_T = float(get("MAX_T", 200)) # Maximum simulation time
-SEED = get("SEED", "1234567890") # Random seed
+SEED = int(get("SEED", 1234567890)) # Random seed
 ALPHA = float(get("ALPHA", .33)) # How many units of sugar regrow per timestep (1.0 unit of time)
 ROWS = int(get("ROWS", 50)) # Landscape rows
 COLUMNS = int(get("COLUMNS", 50)) # Landscape columns

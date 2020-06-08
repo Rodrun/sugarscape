@@ -5,12 +5,12 @@ import random
 
 class Cell:
     """The bones of the Landscape: every coordinate is an individual Cell."""
-    def __init__(self, x, y):
+    def __init__(self, x, y, rng):
         self.x = x
         self.y = y
-        self.capacity = random.randint(0, MAX_POSSIBLE_SUGAR)
+        self.capacity = rng.get("cell").integers(0, MAX_POSSIBLE_SUGAR + 1)
         self.sugar = self.capacity
-        self.level = random.randint(1, MAX_HEIGHT) # Synonymous with height
+        self.level = rng.get("cell").integers(1, MAX_HEIGHT + 1) # Synonymous with height
         self.agent = None
 
     def update_sugar(self, tLast, tNow):
@@ -29,10 +29,11 @@ class Cell:
 
 class Landscape:
     """The world that hosts Cells that hold Agents and sugar."""
-    def __init__(self, rows, cols):
+    def __init__(self, rows, cols, rng):
         self.rows = rows
         self.cols = cols
-        self.landscape = [[Cell(x, y) for x in range(self.cols)] for y in range(self.rows)]
+        self.rng = rng
+        self.landscape = [[Cell(x, y, rng) for x in range(self.cols)] for y in range(self.rows)]
         self.t_lastSugarUpdate = 0
 
     def convert_coords(self, x, y):
@@ -73,8 +74,8 @@ class Landscape:
         x, y = 0, 0
         while tries < maxTries:
             tries += 1
-            x = random.randint(0, self.cols - 1)
-            y = random.randint(0, self.rows - 1)
+            x = self.rng.get("landscape").integers(0, self.cols)
+            y = self.rng.get("landscape").integers(0, self.rows)
             if self.is_empty(x, y):
                 break
         return (x, y) if tries <= maxTries else (None, None)
