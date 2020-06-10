@@ -7,12 +7,10 @@ from config import SEED, SHOW_SUGAR, ROWS, COLUMNS, SHOW_FINAL_COMPARISON,\
 from event import EventCalendar, Event
 from landscape import Landscape
 from pause import interpret
-import random
 from rng import RNG
 from visual import str_map, compare_maps, nice_statistics
 
 
-#random.seed(SEED)
 rng = RNG(SEED)
 
 landscape = Landscape(ROWS, COLUMNS, rng=rng)

@@ -1,6 +1,5 @@
 from agent import Agent
 from config import MAX_HEIGHT, MAX_POSSIBLE_SUGAR, ALPHA
-import random
 
 
 class Cell:

@@ -3,7 +3,6 @@ from config import GESTATION_MU, GESTATION_SIGMA, REPRODUCTION_LAMBDA, FERTILE_A
     MEAN_MAX_AGE, SIGMA_MAX_AGE
 import math
 import plotly.express as px
-#import random
 from rng import RNG
 
 
@@ -36,7 +35,7 @@ class Agent:
         if row == None or col == None:
             self.col, self.row = landscape.next_open()
         if self.row == None or self.row == None:
-            raise Error("No more open spots on landscape!")
+            raise Exception("No more open spots on landscape!")
 
         # Genetic traits
         self.metab = metab if metab != None else rng.get("genetic").uniform(1, 4)
@@ -310,7 +309,7 @@ class AgentList:
 
     def __init__(self, initialAmt, landscape, calendar, rng):
         self.current_id = 0
-        self.agentList = set()
+        self.agentList = []
         for i in range(initialAmt):
             newAgent = Agent(landscape, calendar, rng=rng)
             self.full_add(newAgent, landscape)
@@ -319,7 +318,7 @@ class AgentList:
         """Add agent to Agent list."""
         if isinstance(agent, Agent):
             agent.id = self.current_id
-            self.agentList.add(agent)
+            self.agentList.append(agent)
             self.current_id += 1
         else:
             raise TypeError("add() requires Agent as parameter")
@@ -336,17 +335,19 @@ class AgentList:
         """Search for and return an Agent by id.
         Returns None if not found.
         """
-        for agent in list(self.agentList):
+        for agent in self.agentList:
             if agent.id == id:
                 return agent
         return None
 
     def remove(self, agent, calendar, landscape):
         """Remove agent from the state (AgentList, EventCalendar, Landscape)."""
-        if agent in self.agentList:
+        try:
+            self.agentList.remove(agent)
             landscape.remove(agent.col, agent.row)
             calendar.remove_agent(agent)
-            self.agentList.remove(agent)
+        except:
+            print(f"WARNING: Tried to remove agent {agent.id}")
 
     def average(self, stat):
         """Get the average given stat of the agent population.
