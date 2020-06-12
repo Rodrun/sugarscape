@@ -7,17 +7,19 @@ from rng import RNG
 
 
 class Agent:
-    def __init__(self, landscape, calendar, rng, id=None, t=0, row=None, col=None, metab=None,
+    def __init__(self, landscape, calendar, rng, aList, id=None, t=0, row=None, col=None, metab=None,
         vision=None, mother=None, max_age=None, initial_sugar=0):
         """
-        landscape - Target Landscape.
         calendar - EventCalendar.
+        rng - RNG. 
+        aList - Host AgentList.
         id - Identifier.
         t - Time of birth.
-        row - Landscape row, if None will randomly choose both row and col.
-        col - Landscape column, if None will randomly choose both row and col.
+        row - Spawn row.
+        col - Spawn column.
         metab - Metabolic rate per time step, if None random value is assigned.
-        vision - Vision distance, if None random value is assigned.
+        vision - Visio
+         distance, if None random value is assigned.
         mother - Is mother? (Can reproduce & birth child?)
         max_age - Maximum age.
         initial_sugar - Initial sugar alotted (Agent still eats at Cell it is spawned in).
@@ -25,10 +27,14 @@ class Agent:
         self.id = id
         self.rng = rng
         self.sugar = initial_sugar
-        self.nextSugar = 0 # Calculated sugar by the time of next move event
+        self.t_lastNextSugar = t # Time when update_sugar() was last called
         self.mate = None # Who to combine genetics with
         self.alive = True
         self.birthdate = t # Time of birth, of course
+
+        self.landscape = landscape
+        self.calendar = calendar
+        self.agentList = aList
 
         self.row = row
         self.col = col
@@ -41,81 +47,64 @@ class Agent:
         self.metab = metab if metab != None else rng.get("genetic").uniform(1, 4)
         self.vision = vision if vision != None else math.ceil(rng.get("genetic").uniform(1, 6))
         self.mother = mother if mother != None else rng.get("genetic").choice([True, False])
-        self.max_age = max_age if max_age != None else rng.get("genetic").normal(MEAN_MAX_AGE, SIGMA_MAX_AGE)
+        self.max_age = max_age if max_age != None else abs(rng.get("genetic").normal(MEAN_MAX_AGE, SIGMA_MAX_AGE))
 
         # Time keep
-        self.t_nextEventTime, self.t_nextEventType = math.inf, None
+        self.t_nextEventTime, self.t_nextEventType, self.nextCallback = math.inf, None, None
         self.t_move = t + rng.get("inter").exponential(1.0) # When to move
+        self.move_event = None
         self.t_die  = math.inf # When to die
+        self.die_event = None
         if self.mother:
             self.t_reproduce = t + FERTILE_AGE + rng.get("inter").exponential(REPRODUCTION_LAMBDA)
         else:
             self.t_reproduce = math.inf
+        self.reproduce_event = None
         self.t_birth = math.inf # When to give birth
+        self.birth_event = None
         self.period_g = math.inf # Gestation period length
 
         self.eat(landscape.get_cell(self.col, self.row)) # Eat initial sugar
-        self.setNextEvent(t, calendar)
+        self.check_for_death()
+        if self.t_die != t: # Survives birth?
+            self.move_event = self._sched(Event(self.t_move, Event.MOVE, self, self.move))
+            self.reproduce_event = self._sched(Event(self.t_reproduce, Event.REPRODUCE, self, self.reproduce))
 
-    def _minimum_pair(self, values, results):
-        """Given a list of values with corresponding list of results, return the pair with the minimum value.
-        For example, _minimum_pair([5, 100], ["a", "b"]) -> (5, "a").
-        Does not take into account if all values are math.inf (TODO).
+    def _sched(self, event):
+        """Schedule an event. This also conveniently calls check_for_death().
+        Returns scheduled event (value returned by EventList.add()). None if event time is inf.
         """
-        assert len(values) == len(results) # Every value needs a corresponding results element
-        minIndex = math.inf
-        minValue = math.inf
-        for i in range(len(values)):
-            val = values[i]
-            if val < minValue:
-                minValue = val
-                minIndex = i
-        return minValue, results[minIndex]
+        print(f"_sched{event.time, event.type} by Agent {self.id}")
+        self.check_for_death()
+        if event.time != math.inf:
+            return self.calendar.add(event)
+        return None
 
-    def _maximum_pair(self, values, results):
-        """Given a list of values with corresponding list of results, return the pair with the maximum value.
-        For example, _minimum_pair([5, 100], ["a", "b"]) -> (100, "b").
-        If all values are -inf, will return (-inf, result[0]).
-        """
-        assert len(values) == len(results)
-        maxIndex = math.inf
-        maxValue = -math.inf
-        for i in range(len(values)):
-            val = values[i]
-            if val > maxValue:
-                maxValue = val
-                maxIndex = i
-        if maxIndex == math.inf:
-            result = results[0]
-        else:
-            result = results[maxIndex]
-        return maxValue, result
-
-    def get_next_event(self):
-        """Get the next event time and event type."""
-        return self._minimum_pair(
-            [self.t_move, self.t_die, self.t_reproduce, self.t_birth],
-            [Event.MOVE, Event.DIE, Event.REPRODUCE, Event.BIRTH]
+    def die(self):
+        self.alive = False
+        self.t_nextEventTime = math.inf
+        self.t_nextEventType = None
+        self.nextCallback = None
+        self.landscape.remove(self.col, self.row)
+        self.agentList.remove(self)
+        # Hard-coded cancellation of scheduled events past death
+        self.calendar.cancels(
+            self.reproduce_event,
+            self.move_event,
+            self.birth_event
         )
-
-    def setNextEvent(self, t, calendar):
-        self.t_nextEventTime, self.t_nextEventType = self.get_next_event()
-        self.check_for_death(t, self.t_nextEventTime)
-        self.t_nextEventTime, self.t_nextEventType = self.get_next_event()
-        calendar.add(Event(self.t_nextEventTime, self.t_nextEventType, self))
-        # Compute Agent's sugar amount by time of next event
-        self.nextSugar = self.compute_sugar(t, self.t_nextEventTime)
 
     def eat(self, cell):
         """Eat the sugar at current location."""
         self.sugar += cell.sugar
         cell.sugar = 0
 
-    def field_of_view(self, landscape, evaluate):
+    def field_of_view(self, evaluate):
         """Iterate through the field of view.
-        landscape - Agent's Landscape.
         evaluate - Callable with current Cell parameter and distance from Agent parameter.
         """
+        landscape = self.landscape # TODO: refactor
+
         if not callable(evaluate):
             raise TypeError("field_of_view() requires a callable evaluate parameter")
         agentCell = landscape.get_cell(self.col, self.row)
@@ -130,22 +119,27 @@ class Agent:
                 if currentCell.level <= self.vision + agentCell.level:
                     evaluate(currentCell, dist)
 
-    def moore_neighborhood(self, landscape, evaluate):
+    def moore_neighborhood(self, evaluate):
         """Iterate through the Moore neighborhood.
-        landscape - Agent's Landscape.
         evaluate - Callable with current Cell parameter.
         """
+        landscape = self.landscape # TODO: refactor
+
         if not callable(evaluate):
             raise TypeError("moore_neighborhood() requires a callable evaluate parameter")
-        for y in range(3):
+        yRange = [0, 1, 2]
+        xRange = [0, 1, 2]
+        self.rng.get("shuffle").shuffle(yRange)
+        self.rng.get("shuffle").shuffle(xRange)
+        for y in yRange:
             checkY = self.row - 1 + y
-            for x in range(3):
+            for x in xRange:
                 checkX = self.col - 1 + x
                 checkCell = landscape.get_cell(checkX, checkY)
                 if checkCell.agent != self:
                     evaluate(checkCell)
 
-    def reproduce(self, t, landscape, calendar):
+    def reproduce(self):
         """Look for another Agent in the FOV to reproduce with.
         Only Agents with mother = True choose their mate. Smash the patriarchy.
         Modified reproduce rule:
@@ -153,7 +147,11 @@ class Agent:
             - If Agent cannot find a candidate, reschedule reproduction event.
             - If viable candidate chosen, schedule birth event.
         """
-        self.sugar = self.nextSugar
+        self.update_sugar()
+        calendar = self.calendar # TODO: refactor so this block isn't necessary
+        landscape = self.landscape
+        t = calendar.now()
+
         if self.mother:
             # Find wealthiest non-mother Agent
             wealthiest = None
@@ -166,18 +164,22 @@ class Agent:
                     if cell.sugar > maxSugar and not cand.is_gestating(t) and cand.alive:
                         wealthiest = cand
                         maxSugar = cell.sugar
-            self.field_of_view(landscape, find_wealthiest)
+            self.field_of_view(find_wealthiest)
 
             if wealthiest:
                 self.mate = wealthiest
-                self.period_g = self.rng.get("inter").normal(GESTATION_MU, GESTATION_SIGMA)
+                self.period_g = abs(self.rng.get("inter").normal(GESTATION_MU, GESTATION_SIGMA))
                 self.t_birth = t + self.period_g
                 self.t_reproduce = math.inf
             else:
                 self.t_reproduce = t + self.rng.get("inter").exponential(REPRODUCTION_LAMBDA)
         else:
             self.t_reproduce = t + self.rng.get("inter").exponential(REPRODUCTION_LAMBDA)
-        self.setNextEvent(t, calendar)
+
+        if self.mate != None:
+            self.birth_event = self._sched(Event(self.t_birth, Event.BIRTH, self, self.birth))
+        else:
+            self.reproduce_event = self._sched(Event(self.t_reproduce, Event.REPRODUCE, self, self.reproduce))
 
     def get_best_birth_cell(self, landscape):
         """Get an empty Cell with the most sugar in the Moore neighborhood, if there is one."""
@@ -189,50 +191,54 @@ class Agent:
                 if cell.sugar > maxSugar:
                     maxSugar = cell.sugar
                     maxCell = cell
-        self.moore_neighborhood(landscape, evaluate)
+        self.moore_neighborhood(evaluate)
         return maxCell
 
-    def birth(self, t, landscape, calendar):
+    def birth(self):
         """Give birth, if an empty neighboring Cell is available. Only mother Agents give birth.
         Modified birth rule:
             - Look for an emtpy cell in the Moore neighborhood with the most sugar.
             - If an empty cell cannot be found in the Moore neighborhood, cancel birth.
             - Offspring will have metabolism and vision traits randomly inherited from parents.
-        Returns offspring Agent, None if birth failed.
         """
-        self.sugar = self.nextSugar
-        baby = None
-        if self.alive:
-            birthCell = self.get_best_birth_cell(landscape)
-            if birthCell != None:
-                # Randomly choose inherited traits
-                # It's not necessarily Mendelian, but works for now
-                metab = self.rng.get("genetic").choice([self.metab, self.mate.metab])
-                vision = self.rng.get("genetic").choice([self.vision, self.mate.vision])
-                max_age = self.rng.get("genetic").choice([self.max_age, self.mate.max_age])
-                # Inheritance
-                selfInherit = self.sugar / 2
-                mateInherit = self.mate.sugar / 2
-                # Give birth
-                baby = Agent(landscape, calendar,
-                    row=birthCell.y,
-                    col=birthCell.x,
-                    t=t,
-                    rng=self.rng,
-                    metab=metab,
-                    vision=vision,
-                    max_age=max_age,
-                    initial_sugar=selfInherit + mateInherit)
-                # Adjust for inheritance
-                self.sugar -= selfInherit
-                self.mate.sugar -= mateInherit
+        self.update_sugar()
+        calendar = self.calendar # TODO: refactor so this block isn't necessary
+        t = calendar.now()
+        landscape = self.landscape
 
-        self.mate = None
-        self.t_birth = math.inf
-        # Schedule next reproduction event
-        self.t_reproduce = t + self.rng.get("inter").exponential(REPRODUCTION_LAMBDA)
-        self.setNextEvent(t, calendar)
-        return baby
+        baby = None
+        #if self.alive:
+        birthCell = self.get_best_birth_cell(landscape)
+        if birthCell != None:
+            # Randomly choose inherited traits
+            # It's not necessarily Mendelian, but works for now
+            metab = self.rng.get("genetic").choice([self.metab, self.mate.metab])
+            vision = self.rng.get("genetic").choice([self.vision, self.mate.vision])
+            max_age = self.rng.get("genetic").choice([self.max_age, self.mate.max_age])
+            # Inheritance
+            selfInherit = self.sugar / 2
+            mateInherit = self.mate.sugar / 2
+            # Give birth
+            baby = Agent(landscape, calendar,
+                aList=self.agentList,
+                row=birthCell.y,
+                col=birthCell.x,
+                t=t,
+                rng=self.rng,
+                metab=metab,
+                vision=vision,
+                max_age=max_age,
+                initial_sugar=selfInherit + mateInherit)
+            # Adjust for inheritance
+            self.sugar -= selfInherit
+            self.mate.sugar -= mateInherit
+            self.agentList.full_add(baby)
+
+            self.mate = None
+            self.t_birth = math.inf
+            # Schedule next reproduction event
+            self.t_reproduce = t + self.rng.get("inter").exponential(REPRODUCTION_LAMBDA)
+            self.reproduce_event = self._sched(Event(self.t_reproduce, Event.REPRODUCE, self, self.reproduce))
 
     def is_gestating(self, t):
         """Agent is gestating at time t?"""
@@ -240,9 +246,13 @@ class Agent:
             return False
         return t <= self.t_reproduce + self.period_g
 
-    def move(self, t, landscape, calendar):
+    def move(self):
         """Move agent to best possible nearby spot."""
-        self.sugar = self.nextSugar # Calculate current amount of sugar after metabolism
+        self.update_sugar()
+        calendar = self.calendar # TODO: refactor so this block isn't necessary
+        t = calendar.now()
+        landscape = self.landscape
+
         # Scan in the cardinal directions & search for max visible sugar
         # If multiple max sugar values found, go to nearest
         maxSugar, maxCell, minDist = -1, None, math.inf
@@ -260,7 +270,7 @@ class Agent:
                     if dist < minDist:
                         maxCell = currentCell
 
-        self.field_of_view(landscape, evaluate)
+        self.field_of_view(evaluate)
 
         if maxCell:
             # Move, then eat
@@ -268,37 +278,39 @@ class Agent:
             self.eat(maxCell)
         # Schedule next move
         self.t_move = t + abs(self.rng.get("inter").exponential(1.0))
-        self.setNextEvent(t, calendar)
+        self.move_event = self._sched(Event(self.t_move, Event.MOVE, self, self.move))
 
-    def compute_sugar(self, tNow, tThen):
-        """Compute sugar amount by tThen.
-        Returns float sugar amount.
-        """
-        return self.sugar + (-self.metab * (tThen - tNow))
+    def update_sugar(self):
+        """Update the current sugar level."""
+        print(f"Agent {self.id} update_sugar() executed at t = {self.calendar.now()}")
+        print(f"Agent {self.id} {self.sugar} -= {self.metab} * ({self.calendar.now()} - {self.t_lastNextSugar})")
+        self.sugar -= self.metab * (self.calendar.now() - self.t_lastNextSugar)
+        print(f"Agent {self.id} sugar = {self.sugar}")
+        self.t_lastNextSugar = self.calendar.now()
+        #assert self.sugar > 0
 
-    def compute_death(self, tNow, tHopeful):
-        """Compute time of death.
-        tNow - Current time.
-        tHopeful - Time of next event.
-        Returns float time if death is expected, otherwise -inf.
-        """
-        expectedAmount = self.compute_sugar(tNow, tHopeful)
-        if expectedAmount <= 0:
-            m = (expectedAmount - self.sugar) / (tHopeful - tNow)
-            return tNow + (-self.sugar / m)
-        if tHopeful >= self.max_age:
-            return self.birthdate + self.max_age
-        return -math.inf
+    def _compute_death(self):
+        # Compute time of death, this is to replace the old function
+        # First, calculate time of death (y = mx + b, calculate when y = 0)
+        # Note that we already know b = sugar, m = metab, y = 0, x = ?
+        # Thus our equation will be -b/m = x
+        death = self.calendar.now() + (-self.sugar / -self.metab)
+        print(f"death = {self.calendar.now()} + (-{self.sugar} / -{self.metab})")
+        # Second, compare if calculated death or max age is first, return the minimum of both
+        old_age = self.birthdate + self.max_age
+        print(f"death = {death}, old_age = {old_age} calc'd by Agent {self.id}")
+        self.t_die = min([death, old_age])
 
-    def check_for_death(self, t, t_next):
-        """Check for death and appropriately assign death time.
-        t - Current time.
-        t_next - Hopeful next scheduled event time.
-        """
-        deathTime = self.compute_death(t, t_next)
-        if deathTime != -math.inf:
-            if deathTime < self.t_move:
-                self.t_die = deathTime
+    def check_for_death(self):
+        """Check for death and appropriately schedule death time."""
+        self._compute_death()
+        if self.sugar <= 0:
+            self.t_die = self.calendar.now() # This is not good, TODO fix the negative sugar bug!
+        print(f"Computed deathTime = {self.t_die} calc'd at t = {self.calendar.now()}")
+        if self.die_event != None:
+            self.die_event = self.calendar.resched(self.die_event, self.t_die)
+        else:
+            self.die_event = self.calendar.add(Event(self.t_die, Event.DIE, self, self.die))
 
 
 class AgentList:
@@ -311,8 +323,8 @@ class AgentList:
         self.current_id = 0
         self.agentList = []
         for i in range(initialAmt):
-            newAgent = Agent(landscape, calendar, rng=rng)
-            self.full_add(newAgent, landscape)
+            newAgent = Agent(landscape, calendar, aList=self, rng=rng)
+            self.full_add(newAgent)
 
     def add(self, agent):
         """Add agent to Agent list."""
@@ -323,9 +335,9 @@ class AgentList:
         else:
             raise TypeError("add() requires Agent as parameter")
 
-    def full_add(self, agent, landscape):
-        """Add agent to Agent list and given Landscape."""
+    def full_add(self, agent):
         self.add(agent)
+        landscape = agent.landscape
         success = landscape.put(agent, agent.col, agent.row)
         if not success:
             occ = landscape.get_cell(agent.col, agent.row).agent.id
@@ -340,14 +352,11 @@ class AgentList:
                 return agent
         return None
 
-    def remove(self, agent, calendar, landscape):
-        """Remove agent from the state (AgentList, EventCalendar, Landscape)."""
+    def remove(self, agent):
         try:
             self.agentList.remove(agent)
-            landscape.remove(agent.col, agent.row)
-            calendar.remove_agent(agent)
         except:
-            print(f"WARNING: Tried to remove agent {agent.id}")
+            print(f"WARNING: Tried to remove agent {agent.id} who is not in the Agent list")
 
     def average(self, stat):
         """Get the average given stat of the agent population.

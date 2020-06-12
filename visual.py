@@ -99,12 +99,12 @@ def str_agent(agent):
     result += f"vision: {agent.vision}\n"
     result += f"t_nextEventTime: {agent.t_nextEventTime}\n"
     result += f"t_nextEventType: {agent.t_nextEventType}\n"
-    result += f"birthdate: {agent.birthdate}"
+    result += f"birthdate: {agent.birthdate}\n"
     result += f"max_age: {agent.max_age}\n"
     result += f"mother: {agent.mother}\n"
     result += f"period_g: {agent.period_g}\n"
     if agent.mate:
-        result += f"mate: {agent.mate.id}"
+        result += f"mate: {agent.mate.id}\n"
     return result
 
 

@@ -57,8 +57,7 @@ class Landscape:
         if not self.is_empty(x, y):
             self.get_cell(x, y).agent = None
         else:
-            #print(f"WARNING: Tried to remove nonexistent Agent at ({x, y})") # TODO Handle this better if it happens
-            pass
+            print(f"WARNING: Tried to remove nonexistent Agent at {x, y}")
 
     def is_empty(self, x, y):
         """Check if Cell at (x, y) does not have agent."""

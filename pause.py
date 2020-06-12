@@ -66,15 +66,6 @@ def alive(args, agentList, eventCalendar, landscape, time):
         print(agent.id)
 
 
-def jump(args, agentList, eventCalendar, landscape, time):
-    print("Not yet implemented!")
-
-
-def nextevent(args, agentList, eventCalendar, landscape, time):
-    ev = eventCalendar.getMinEvent(doPop=False)
-    print(str_event(ev))
-
-
 def lscount(args, agentList, eventCalendar, landscape, time):
     ct = 0
     for y in range(landscape.rows):
@@ -82,19 +73,6 @@ def lscount(args, agentList, eventCalendar, landscape, time):
             if landscape.get_cell(y, x).agent != None:
                 ct += 1
     print(f"Landscape count: {ct}")
-
-
-def nefind(args, agentList, eventCalendar, landscape, time):
-    if len(args) == 0:
-        help("nefind", agentList, eventCalendar, landscape, time)
-    elif len(args) == 1:
-        found = eventCalendar.next_by_type(args[0])
-        if found:
-            print(str_event(found))
-        else:
-            print("No nearest event found with given type :(")
-    else:
-        print("Invalid arguments; help nefind")
 
 
 ########### Base commands ###########
@@ -124,25 +102,10 @@ COMMANDS = {
         "format": "",
         "exec": alive
     },
-    "jump": { # TODO implement this
-        "summary": "Jump to the nearest given time",
-        "format": "<time>",
-        "exec": jump
-    },
-    "nextevent": {
-        "summary": "Show info about the next event",
-        "format": "",
-        "exec": nextevent
-    },
     "lscount": {
         "summary": "Show the population count of the landscape",
         "format": "",
         "exec": lscount
-    },
-    "nefind": {
-        "summary": "Find the next event by given type",
-        "format": "<typename>",
-        "exec": nefind
     }
 }
 
