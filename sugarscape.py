@@ -19,7 +19,7 @@ def postoperation(landscape, calendar, agentList):
     t = calendar.now()
     if SHOW_ANIMATION:
         bMap = str_map(landscape, showSugar=SHOW_SUGAR)
-        print(f"t = {t}, alive = {len(agentList.agentList)}\n{bMap}")
+        print(f"t = {t:4.32}, alive = {len(agentList.agentList)}\n{bMap}")
 
     if PAUSE:
         # Print nice statistics and await input

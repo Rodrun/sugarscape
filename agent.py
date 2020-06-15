@@ -74,13 +74,14 @@ class Agent:
         """Schedule an event. This also conveniently calls check_for_death().
         Returns scheduled event (value returned by EventList.add()). None if event time is inf.
         """
-        print(f"_sched{event.time, event.type} by Agent {self.id}")
+        #print(f"_sched{event.time, event.type} by Agent {self.id}")
         self.check_for_death()
         if event.time != math.inf:
             return self.calendar.add(event)
         return None
 
     def die(self):
+        print(f"Agent {self.id} is now DEAD!!!!!!!!!! RIP at {self.calendar.now()} w/ {self.sugar} sugar max_age = {self.max_age}")
         self.alive = False
         self.t_nextEventTime = math.inf
         self.t_nextEventType = None
@@ -280,12 +281,21 @@ class Agent:
         self.t_move = t + abs(self.rng.get("inter").exponential(1.0))
         self.move_event = self._sched(Event(self.t_move, Event.MOVE, self, self.move))
 
+    def _compute_sugar(self, ti, tf, si):
+        """Compute sugar. sf = -metab(tf - ti) + si.
+        ti - Initial time.
+        tf - Final time.
+        si - Initial sugar.
+        """
+        return (-self.metab * (tf - ti)) + si
+
     def update_sugar(self):
         """Update the current sugar level."""
-        print(f"Agent {self.id} update_sugar() executed at t = {self.calendar.now()}")
-        print(f"Agent {self.id} {self.sugar} -= {self.metab} * ({self.calendar.now()} - {self.t_lastNextSugar})")
-        self.sugar -= self.metab * (self.calendar.now() - self.t_lastNextSugar)
-        print(f"Agent {self.id} sugar = {self.sugar}")
+        #print(f"Agent {self.id} update_sugar() executed at t = {self.calendar.now()}")
+        #print(f"Agent {self.id} {self.sugar} -= {self.metab} * ({self.calendar.now()} - {self.t_lastNextSugar})")
+        #self.sugar = -self.metab * (self.t_lastNextSugar - self.calendar.now()) + self.sugar
+        self.sugar = self._compute_sugar(self.t_lastNextSugar, self.calendar.now(), self.sugar)
+        #print(f"Agent {self.id} sugar = {self.sugar}")
         self.t_lastNextSugar = self.calendar.now()
         #assert self.sugar > 0
 
@@ -295,10 +305,12 @@ class Agent:
         # Note that we already know b = sugar, m = metab, y = 0, x = ?
         # Thus our equation will be -b/m = x
         death = self.calendar.now() + (-self.sugar / -self.metab)
-        print(f"death = {self.calendar.now()} + (-{self.sugar} / -{self.metab})")
+        #print(f"({self.id}) Calc'd death for {death}. sf = {(-self.metab * (death - self.calendar.now())) + self.sugar}")
+        #assert 0 >= (-self.metab * (death - self.calendar.now())) + self.sugar
+        #print(f"death = {self.calendar.now()} + (-{self.sugar} / -{self.metab})")
         # Second, compare if calculated death or max age is first, return the minimum of both
         old_age = self.birthdate + self.max_age
-        print(f"death = {death}, old_age = {old_age} calc'd by Agent {self.id}")
+        #print(f"death = {death}, old_age = {old_age} calc'd by Agent {self.id}")
         self.t_die = min([death, old_age])
 
     def check_for_death(self):
@@ -306,7 +318,7 @@ class Agent:
         self._compute_death()
         if self.sugar <= 0:
             self.t_die = self.calendar.now() # This is not good, TODO fix the negative sugar bug!
-        print(f"Computed deathTime = {self.t_die} calc'd at t = {self.calendar.now()}")
+        #print(f"Computed deathTime = {self.t_die} calc'd at t = {self.calendar.now()}")
         if self.die_event != None:
             self.die_event = self.calendar.resched(self.die_event, self.t_die)
         else:

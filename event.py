@@ -25,7 +25,7 @@ class EventCalendar:
 
     def now(self):
         """Get the current simulation time."""
-        return self.sim.now
+        return float(self.sim.now)
 
     def set_preevent(self, callback, *args):
         """Set the pre-event operation.
@@ -81,16 +81,3 @@ class EventCalendar:
         """
         for ev in es:
             self.cancel(ev)
-
-    def next_by_type(self, type):
-        """Find the next event with given type.
-        Returns next event, None if not found.
-        """
-        if len(self.calendar) > 0:
-            minTime, minEvent = math.inf, None
-            for event in self.calendar:
-                if event.time < minTime and event.type == type:
-                    minEvent = event
-                    minTime = event.time
-            return minEvent
-        return None

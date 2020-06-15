@@ -17,7 +17,7 @@ REPRODUCTION_LAMBDA = float(get("REPRODUCTION_LAMBDA", 0.175)) # Random expovari
 FERTILE_AGE = float(get("FERTILE_AGE", 1.6)) # Minimum time age mothering Agents can reproduce
 GESTATION_MU = float(get("GESTATION_MU", 1)) # Mean gestation period length (normal distribution)
 GESTATION_SIGMA = float(get("GESTATION_SIGMA", .5)) # Std Deviation of gestation period length distribution
-MEAN_MAX_AGE = float(get("MEAN_MAX_AGE", 70)) # Mean maximum age, max age is randomly chosen from a gaussian distribution
+MEAN_MAX_AGE = float(get("MEAN_MAX_AGE", 30)) # Mean maximum age, max age is randomly chosen from a gaussian distribution
 SIGMA_MAX_AGE = float(get("SIGMA_MAX_AGE", 10)) # Maximum age gaussian distribution standard distribution
 # Visual general config
 SHOW_ANIMATION = sbool(get("SHOW_ANIMATION", "False")) # Show visual of every event -- slower simulation

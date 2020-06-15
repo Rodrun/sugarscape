@@ -78,7 +78,7 @@ class Landscape:
                 break
         return (x, y) if tries <= maxTries else (None, None)
     
-    def get_cell(self, x, y, strict=False):
+    def get_cell(self, x, y):
         """Get the cell at (x, y).
         Since the landscape is a torus, coordinate values "wrap" around. Similar to pacman.
         """
@@ -88,7 +88,7 @@ class Landscape:
         """Move Agent at (x0, y0) to (x1, y1)."""
         oldCell = self.get_cell(x0, y0)
         if oldCell.agent == None:
-            #print(f"WARNING: Tried to move nonexistent Agent at {x0, y0}") # TODO Handle this better?
+            print(f"WARNING: Tried to move nonexistent Agent at {x0, y0}") # TODO Handle this better?
             return
         self.put(oldCell.agent, x1, y1)
         self.remove(x0, y0)
