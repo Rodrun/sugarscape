@@ -11,37 +11,15 @@ from rng import RNG
 from visual import str_map, compare_maps, nice_statistics
 
 
-rng = RNG(SEED)
+def preoperation(lScape, calendar):
+    lScape.update_sugar(calendar.now())
 
-landscape = Landscape(ROWS, COLUMNS, rng=rng)
-eventList = EventCalendar()
-agentList = AgentList(AGENTS, landscape, eventList, rng=rng)
 
-print(f"Seed: {SEED}")
-print(nice_statistics(agentList, 0))
-init_map = str_map(landscape, showSugar=SHOW_SUGAR)
-
-e = eventList.getMinEvent()
-t = e.time
-while t < MAX_T and len(eventList.calendar) > 0:
-    # Update sugar in the landscape
-    landscape.update_sugar(t)
-
-    if e.type == Event.MOVE:
-        e.agent.move(t, landscape, eventList)
-    elif e.type == Event.DIE:
-        e.agent.alive = False
-        agentList.remove(e.agent, eventList, landscape)
-    elif e.type == Event.BIRTH:
-        baby = e.agent.birth(t, landscape, eventList)
-        if baby:
-            agentList.full_add(baby, landscape)
-    elif e.type == Event.REPRODUCE:
-        e.agent.reproduce(t, landscape, eventList)
-
-    if SHOW_ANIMATION and t >= 0: # Weird bug where sometimes negative times are shown?
+def postoperation(landscape, calendar, agentList):
+    t = calendar.now()
+    if SHOW_ANIMATION:
         bMap = str_map(landscape, showSugar=SHOW_SUGAR)
-        print(f"t = {t}, alive = {len(agentList.agentList)}\n{bMap}")
+        print(f"t = {t:4.32}, alive = {len(agentList.agentList)}\n{bMap}")
 
     if PAUSE:
         # Print nice statistics and await input
@@ -50,12 +28,27 @@ while t < MAX_T and len(eventList.calendar) > 0:
         repeatInput = True
         while repeatInput:
             uInput = input(f"Input t={t}> ")
-            repeatInput = interpret(uInput, agentList, eventList, landscape, t)
+            repeatInput = interpret(uInput, agentList, calendar, landscape, calendar.now())
 
-    if len(eventList.calendar) > 0:
-        e = eventList.getMinEvent()
-        t = e.time
 
+rng = RNG(SEED)
+eventList = EventCalendar()
+landscape = Landscape(ROWS, COLUMNS, rng=rng)
+agentList = AgentList(AGENTS, landscape, eventList, rng=rng)
+
+eventList.set_preevent(preoperation, landscape, eventList)
+eventList.set_postevent(postoperation, landscape, eventList, agentList)
+
+## Pre simulation ##
+print(f"Seed: {SEED}")
+print(nice_statistics(agentList, 0))
+init_map = str_map(landscape, showSugar=SHOW_SUGAR)
+
+## Simulation ##
+eventList.run(MAX_T)
+
+## Post simulation ##
+t = eventList.now()
 # Statistics output
 print(nice_statistics(agentList, t))
 
